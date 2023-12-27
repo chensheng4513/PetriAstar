@@ -9,8 +9,8 @@ public class Token {
     public double direction;//行进的方向,0表示x方向，Math.PI/2表示y方向
     public float speed;//速度
     public int position;//当前位置
-    public int start;
-    public int end;
+    public int start;//起始位置
+    public int end;//终点
 
     public HashMap<Integer, Place> path;//当前的路径
 
