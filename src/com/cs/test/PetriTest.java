@@ -39,10 +39,10 @@ public class PetriTest {
 
         //初始化穿梭车状态
         Token[] tokens = new Token[4];
-        tokens[0] = new Token(0, "穿梭车0_红色", true, 0, 1, 3, 3, 26, null);
-        tokens[1] = new Token(1, "穿梭车1_绿色", false, 0, 1, 1, 1, 28, null);
-        tokens[2] = new Token(2, "穿梭车2_蓝色", false, Math.PI / 2, 1, 9, 9, 11, null);
-        tokens[3] = new Token(3, "穿梭车3_青色", false, Math.PI / 2, 1, 7, 7, 5, null);
+        tokens[0] = new Token(0, "穿梭车0_红色", true, 0, 1, 3, 3, 26, null,null,1,2);
+        tokens[1] = new Token(1, "穿梭车1_绿色", false, 0, 1, 1, 1, 28, null,null,1,1);
+        tokens[2] = new Token(2, "穿梭车2_蓝色", false, Math.PI / 2, 1, 9, 9, 11, null,null,1,1);
+        tokens[3] = new Token(3, "穿梭车3_青色", false, Math.PI / 2, 1, 7, 7, 5, null,null,1,1);
 
         //初始化货位数组
         int[] storageInfo = new int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -56,8 +56,8 @@ public class PetriTest {
         tokens[1].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 1);
         tokens[2].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 2);
         tokens[3].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 3);
-
-
+        //设置所有托肯的无死锁路径和优先级
+        ArrayList<conflictPlaceSet> allConflictPlaceSets = getUnDeadlockRoute(tokens,storageInfo);
         //打印路径
         for (int i = 0; i < 4; i++) {
             if (tokens[i].path != null) {
@@ -69,52 +69,8 @@ public class PetriTest {
             }
 
         }
-        // 打印冲突库所集合
 
-        ArrayList<conflictPlaceSet> AllConflictPlaceSets = getAllConflictPlaceSets(tokens);
-        for (conflictPlaceSet conflictSet : AllConflictPlaceSets) {
-            System.out.println("冲突库所集合：");
-            for (Place place : conflictSet.placeSet) {
-                System.out.println(place.name);
-            }
-            System.out.println("冲突类型：" + conflictSet.conflictType);
-            System.out.println("冲突的托肯A：" + conflictSet.conflictTokenA.name);
-            System.out.println("冲突的托肯B：" + conflictSet.conflictTokenB.name);
-            System.out.println("--------------------");
-        }
 
-        // 打印死锁库所集合
-        ArrayList<conflictPlaceSet> deadlockSets = detectDeadlocks(AllConflictPlaceSets);
-        for (conflictPlaceSet conflictSet : deadlockSets) {
-            System.out.println("死锁库所集合：");
-            for (Place place : conflictSet.placeSet) {
-                System.out.println(place.name); // 假设 Place 类有一个 name 属性
-            }
-            System.out.println("死锁类型：" + conflictSet.deadlockType);
-            System.out.println("冲突的托肯A：" + conflictSet.conflictTokenA.name); // 假设 Token 类有一个 name 属性
-            System.out.println("冲突的托肯B：" + conflictSet.conflictTokenB.name); // 假设 Token 类有一个 name 属性
-            System.out.println("--------------------");
-        }
-
-        // 打印需要重新规划路径的托肯
-        ArrayList<Integer> needReplanTokens = getNeedReplanTokensId(deadlockSets,AllConflictPlaceSets);
-        for (Integer tokenId : needReplanTokens) {
-            System.out.println("需要重新规划路径的托肯：" + tokens[tokenId].name);
-        }
-        //路径重规划
-        replanTokenPaths(needReplanTokens,AllConflictPlaceSets,storageInfo,tokens);
-        //再打印一遍路径
-        for (int i = 0; i < 4; i++) {
-            if (tokens[i].path != null) {
-                for (HashMap.Entry<Integer, Place> entry : tokens[i].path.entrySet()) {
-                    System.out.println(tokens[i].name + "___序号: " + entry.getKey() + ", 库所: " + entry.getValue().name);
-                }
-            } else {
-                System.out.println(tokens[i].name + "___路径为空");
-            }
-
-        }
-        // 重规划后再次检测死锁库所集合
       
 
 
@@ -204,7 +160,7 @@ public class PetriTest {
      * @return
      */
     public static ArrayList<conflictPlaceSet> getAllConflictPlaceSets(Token @NotNull [] tokens) {
-    ArrayList<conflictPlaceSet> AllConflictPlaceSets = new ArrayList<>();
+    ArrayList<conflictPlaceSet> allConflictPlaceSets = new ArrayList<>();
 
     // 遍历所有的Token对
     for (int i = 0; i < tokens.length; i++) {
@@ -212,11 +168,11 @@ public class PetriTest {
             // 获取Token对之间的冲突库所集合
             ArrayList<conflictPlaceSet> conflictPlaceSets = getConflictPlaceSet(tokens, i, j);
             // 将冲突库所集合添加到AllConflictPlaceSets中
-            AllConflictPlaceSets.addAll(conflictPlaceSets);
+            allConflictPlaceSets.addAll(conflictPlaceSets);
         }
     }
 
-    return AllConflictPlaceSets;
+    return allConflictPlaceSets;
 }
 
     /**
@@ -346,5 +302,93 @@ public class PetriTest {
             tokens[token].path = new PetriAstar().start(info, storageInfo, tokens, token);
 
         }
+    }
+
+    /**
+     * 计算各各托肯的优先级
+     * @param tokens
+     * @param AllConflictPlaceSets
+     */
+    public static void calPriority(Token @NotNull [] tokens,ArrayList<conflictPlaceSet> AllConflictPlaceSets){
+        for (int i = 0; i < tokens.length; i++) {
+            int numS = 0;
+            int numE = 0;
+            for (conflictPlaceSet conflictSet : AllConflictPlaceSets){
+                if (conflictSet.conflictTokenA.equals(tokens[i]) || conflictSet.conflictTokenB.equals(tokens[i])) {
+                    for (Place p : conflictSet.placeSet){
+                        if(p.index == tokens[i].start){
+                            numS++;
+                        }else if(p.index == tokens[i].end){
+                            numE++;
+                        }
+                    }
+                }
+            }
+            int priority = tokens[i].taskPriority + ((tokens[i].isLoad) ? 1 : 0 ) + numS - numE;
+            tokens[i].priority = priority;
+            System.out.println("托肯"+ i + "的优先级为： " + tokens[i].priority);
+        }
+    }
+
+    /**
+     * 为每个托肯设置无死锁路径和优先级,返回所有的冲突库所集合供轮询算法使用，如果返回null，则表示重规划次数达到上限10次，仍然存在死锁
+     * @param tokens
+     * @param storageInfo
+     * @return
+     */
+    public static ArrayList<conflictPlaceSet> getUnDeadlockRoute(Token @NotNull [] tokens,int[] storageInfo){
+        ArrayList<conflictPlaceSet> allConflictPlaceSets = new ArrayList<>();
+        for (int i = 0; i < 10; i++) {
+
+            // 获得冲突库所集合
+            allConflictPlaceSets = getAllConflictPlaceSets(tokens);
+            if (allConflictPlaceSets.isEmpty()) {
+                System.out.println("所有托肯路径均无冲突");
+                break;
+            }
+            for (conflictPlaceSet conflictSet : allConflictPlaceSets) {
+                System.out.println("冲突库所集合：");
+                for (Place place : conflictSet.placeSet) {
+                    System.out.println(place.name);
+                }
+                System.out.println("冲突类型：" + conflictSet.conflictType);
+                System.out.println("冲突的托肯A：" + conflictSet.conflictTokenA.name);
+                System.out.println("冲突的托肯B：" + conflictSet.conflictTokenB.name);
+                System.out.println("--------------------");
+            }
+
+            // 获得死锁库所集合
+            ArrayList<conflictPlaceSet> deadlockSets = detectDeadlocks(allConflictPlaceSets);
+            if (deadlockSets.isEmpty()) {
+                System.out.println("所有托肯路径均无死锁");
+                break;
+            }
+            for (conflictPlaceSet conflictSet : deadlockSets) {
+                System.out.println("死锁库所集合：");
+                for (Place place : conflictSet.placeSet) {
+                    System.out.println(place.name);
+                }
+                System.out.println("死锁类型：" + conflictSet.deadlockType);
+                System.out.println("冲突的托肯A：" + conflictSet.conflictTokenA.name);
+                System.out.println("冲突的托肯B：" + conflictSet.conflictTokenB.name);
+                System.out.println("--------------------");
+            }
+
+            // 获得需要重新规划路径的托肯
+            ArrayList<Integer> needReplanTokens = getNeedReplanTokensId(deadlockSets,allConflictPlaceSets);
+            for (Integer tokenId : needReplanTokens) {
+                System.out.println("需要重新规划路径的托肯：" + tokens[tokenId].name);
+            }
+            //路径重规划
+            replanTokenPaths(needReplanTokens,allConflictPlaceSets,storageInfo,tokens);
+            if(i==9){
+                System.out.println("路径重规划次数超过10次，仍然存在死锁");
+                return null;
+            }
+
+        }
+        // 计算优先级
+        calPriority(tokens,allConflictPlaceSets);
+        return allConflictPlaceSets;
     }
 }

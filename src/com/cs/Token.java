@@ -11,11 +11,13 @@ public class Token {
     public int position;//当前位置
     public int start;//起始位置
     public int end;//终点
+    public HashMap<Integer, Place> path;//当前规划好的完整路径
+    public HashMap<Integer, Place> remainPath;//剩余路径，从当前位置position开始的后续未到达的路径
+    public int taskPriority;//任务的优先级
+    public int priority;//总的优先级
 
-    public HashMap<Integer, Place> path;//当前的路径
 
-
-    public Token(int id, String name, boolean isLoad, double direction, float speed, int position, int start, int end, HashMap<Integer, Place> path) {
+    public Token(int id, String name, boolean isLoad, double direction, float speed, int position, int start, int end, HashMap<Integer, Place> path, HashMap<Integer, Place> remainPath, int taskPriority, int priority) {
         this.id = id;
         this.name = name;
         this.isLoad = isLoad;
@@ -25,9 +27,12 @@ public class Token {
         this.start = start;
         this.end = end;
         this.path = path;
+        this.remainPath = remainPath;
+        this.taskPriority = taskPriority;
+        this.priority = priority;
     }
 
-@Override
+    @Override
 public boolean equals(Object obj) {
     if (this == obj) {
         return true;
@@ -38,75 +43,5 @@ public boolean equals(Object obj) {
     Token token = (Token) obj;
     return id == token.id;
 }
-    public int getId() {
-        return id;
-    }
 
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public boolean isLoad() {
-        return isLoad;
-    }
-
-    public void setLoad(boolean load) {
-        isLoad = load;
-    }
-
-    public double getDirection() {
-        return direction;
-    }
-
-    public void setDirection(double direction) {
-        this.direction = direction;
-    }
-
-    public float getSpeed() {
-        return speed;
-    }
-
-    public void setSpeed(float speed) {
-        this.speed = speed;
-    }
-
-    public int getPosition() {
-        return position;
-    }
-
-    public void setPosition(int position) {
-        this.position = position;
-    }
-
-    public int getStart() {
-        return start;
-    }
-
-    public void setStart(int start) {
-        this.start = start;
-    }
-
-    public int getEnd() {
-        return end;
-    }
-
-    public void setEnd(int end) {
-        this.end = end;
-    }
-
-    public HashMap<Integer, Place> getPath() {
-        return path;
-    }
-
-    public void setPath(HashMap<Integer, Place> path) {
-        this.path = path;
-    }
 }
