@@ -27,7 +27,17 @@ public class Token {
         this.path = path;
     }
 
-
+@Override
+public boolean equals(Object obj) {
+    if (this == obj) {
+        return true;
+    }
+    if (obj == null || getClass() != obj.getClass()) {
+        return false;
+    }
+    Token token = (Token) obj;
+    return id == token.id;
+}
     public int getId() {
         return id;
     }

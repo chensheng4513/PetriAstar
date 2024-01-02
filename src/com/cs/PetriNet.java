@@ -176,7 +176,7 @@ public class PetriNet {
     }
 
     /**
-     * 获得库所P的后集变迁索引集合
+     * 获得库所P的后集库所索引集合
      * @param index
      * @param matrix
      * @return
@@ -200,6 +200,41 @@ public class PetriNet {
         }
         return arrP;
     }
+
+    /**
+     *  获得P的前集变迁索引集合
+     * @param index
+     * @param matrix
+     * @return
+     */
+    public ArrayList<Integer> getForwardTransitionIndexSetForPlace(int index , int[][] matrix){
+        //找出P的前集变迁索引集合
+        ArrayList<Integer> arrT = new ArrayList<>();
+        for (int i = 0; i < matrix[index].length; i++) {
+            if (matrix[index][i] == 1){
+                arrT.add(i);
+            }
+        }
+        return arrT;
+    }
+
+    /**
+     * 获得P的后集变迁索引集合
+     * @param index
+     * @param matrix
+     * @return
+     */
+    public ArrayList<Integer> getbackwardTransitionIndexSetForPlace(int index , int[][] matrix){
+        //找出P的后集变迁索引集合
+        ArrayList<Integer> arrT = new ArrayList<>();
+        for (int i = 0; i < matrix[index].length; i++) {
+            if (matrix[index][i] == -1){
+                arrT.add(i);
+            }
+        }
+        return arrT;
+    }
+
 
     /**
      * 获得变迁T的前集和后集

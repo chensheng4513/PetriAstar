@@ -1,6 +1,7 @@
 package com.cs.test;
 
 import com.cs.*;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,11 +50,10 @@ public class PetriTest {
                 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
         //调用A*算法，获得各托肯的路径
-
-        tokens[0].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 0);
-        tokens[1].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 1);
 //        tokens[0].path = path0;
 //        tokens[1].path = path1;
+        tokens[0].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 0);
+        tokens[1].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 1);
         tokens[2].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 2);
         tokens[3].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 3);
 
@@ -90,11 +90,32 @@ public class PetriTest {
             for (Place place : conflictSet.placeSet) {
                 System.out.println(place.name); // 假设 Place 类有一个 name 属性
             }
-            System.out.println("死锁类型：" + conflictSet.conflictType);
+            System.out.println("死锁类型：" + conflictSet.deadlockType);
             System.out.println("冲突的托肯A：" + conflictSet.conflictTokenA.name); // 假设 Token 类有一个 name 属性
             System.out.println("冲突的托肯B：" + conflictSet.conflictTokenB.name); // 假设 Token 类有一个 name 属性
             System.out.println("--------------------");
         }
+
+        // 打印需要重新规划路径的托肯
+        ArrayList<Integer> needReplanTokens = getNeedReplanTokensId(deadlockSets,AllConflictPlaceSets);
+        for (Integer tokenId : needReplanTokens) {
+            System.out.println("需要重新规划路径的托肯：" + tokens[tokenId].name);
+        }
+        //路径重规划
+        replanTokenPaths(needReplanTokens,AllConflictPlaceSets,storageInfo,tokens);
+        //再打印一遍路径
+        for (int i = 0; i < 4; i++) {
+            if (tokens[i].path != null) {
+                for (HashMap.Entry<Integer, Place> entry : tokens[i].path.entrySet()) {
+                    System.out.println(tokens[i].name + "___序号: " + entry.getKey() + ", 库所: " + entry.getValue().name);
+                }
+            } else {
+                System.out.println(tokens[i].name + "___路径为空");
+            }
+
+        }
+        // 重规划后再次检测死锁库所集合
+      
 
 
     }
@@ -104,9 +125,9 @@ public class PetriTest {
      * @param tokens
      * @param tokenIndexA
      * @param tokenIndexB
-     * @return
+     * @return 两托肯形成的的所有冲突库所集合
      */
-    public static ArrayList <conflictPlaceSet>  getConflictPlaceSet (Token[] tokens, int tokenIndexA, int tokenIndexB){
+    public static ArrayList <conflictPlaceSet>  getConflictPlaceSet (Token @NotNull [] tokens, int tokenIndexA, int tokenIndexB){
 
         Map<Integer, Place> pathA = tokens[tokenIndexA].path;
         Map<Integer, Place> pathB = tokens[tokenIndexB].path;
@@ -142,7 +163,7 @@ public class PetriTest {
                         }
                     } else {
                         // 如果不连续，则将当前冲突库所集合添加到列表中，并开始新的冲突库所集合
-                        conflictPlaceSets.add(new conflictPlaceSet(new ArrayList<>(currentConflictSet), currentConflictType,tokens[tokenIndexA],tokens[tokenIndexB]));
+                        conflictPlaceSets.add(new conflictPlaceSet(new ArrayList<>(currentConflictSet), currentConflictType,null,tokens[tokenIndexA],tokens[tokenIndexB]));
                         currentConflictSet.clear();
                         currentConflictSet.add(entryA.getValue());
                         currentConflictType = "单冲突库所集合";
@@ -153,7 +174,7 @@ public class PetriTest {
 
         // 如果最后一个冲突库所集合非空，则添加到列表中
         if (!currentConflictSet.isEmpty()) {
-            conflictPlaceSets.add(new conflictPlaceSet(currentConflictSet, currentConflictType,tokens[tokenIndexA],tokens[tokenIndexB]));
+            conflictPlaceSets.add(new conflictPlaceSet(currentConflictSet, currentConflictType,null,tokens[tokenIndexA],tokens[tokenIndexB]));
         }
 
         return conflictPlaceSets;
@@ -178,11 +199,11 @@ public class PetriTest {
     }
 
     /**
-     * 获取所有token间的冲突库所集合
+     * 获取所有token两两之间形成的的冲突库所集合
      * @param tokens
      * @return
      */
-    public static ArrayList<conflictPlaceSet> getAllConflictPlaceSets(Token[] tokens) {
+    public static ArrayList<conflictPlaceSet> getAllConflictPlaceSets(Token @NotNull [] tokens) {
     ArrayList<conflictPlaceSet> AllConflictPlaceSets = new ArrayList<>();
 
     // 遍历所有的Token对
@@ -198,7 +219,12 @@ public class PetriTest {
     return AllConflictPlaceSets;
 }
 
-    public static ArrayList<conflictPlaceSet> detectDeadlocks(ArrayList<conflictPlaceSet> AllConflictPlaceSets) {
+    /**
+     * 检测死锁
+     * @param AllConflictPlaceSets
+     * @return 返回所有形成死锁的冲突库所集合
+     */
+    public static ArrayList<conflictPlaceSet> detectDeadlocks(@NotNull ArrayList<conflictPlaceSet> AllConflictPlaceSets) {
         ArrayList<conflictPlaceSet> deadlockSets = new ArrayList<>();
 
         for (conflictPlaceSet conflictSet : AllConflictPlaceSets) {
@@ -209,26 +235,116 @@ public class PetriTest {
                 ((startPlace.index == conflictSet.conflictTokenA.start && endPlace.index == conflictSet.conflictTokenA.end) ||
             (startPlace.index == conflictSet.conflictTokenB.start && endPlace.index == conflictSet.conflictTokenB.end) || (endPlace.index == conflictSet.conflictTokenA.start && startPlace.index == conflictSet.conflictTokenA.end) ||
                         (endPlace.index == conflictSet.conflictTokenB.start && startPlace.index == conflictSet.conflictTokenB.end))) {
-                conflictSet.conflictType = "同向包含";
+                conflictSet.deadlockType = "同向包含";
                 deadlockSets.add(conflictSet);
             } else if (conflictSet.conflictType.equals("反向冲突库所集合")) {
                 if ((startPlace.index == conflictSet.conflictTokenA.start && endPlace.index == conflictSet.conflictTokenA.end) ||
                         (startPlace.index == conflictSet.conflictTokenB.start && endPlace.index == conflictSet.conflictTokenB.end) || (endPlace.index == conflictSet.conflictTokenA.start && startPlace.index == conflictSet.conflictTokenA.end) ||
                         (endPlace.index == conflictSet.conflictTokenB.start && startPlace.index == conflictSet.conflictTokenB.end)) {
-                    conflictSet.conflictType = "反向包含";
+                    conflictSet.deadlockType = "反向包含";
                     deadlockSets.add(conflictSet);
                 } else if ((startPlace.index == conflictSet.conflictTokenA.start && endPlace.index == conflictSet.conflictTokenB.start) ||
                         (startPlace.index == conflictSet.conflictTokenB.start && endPlace.index == conflictSet.conflictTokenA.start)) {
-                    conflictSet.conflictType = "反向起始冲撞";
+                    conflictSet.deadlockType = "反向起始冲撞";
                     deadlockSets.add(conflictSet);
                 } else if ((startPlace.index == conflictSet.conflictTokenA.end && endPlace.index == conflictSet.conflictTokenB.end) ||
                         (startPlace.index == conflictSet.conflictTokenB.end && endPlace.index == conflictSet.conflictTokenA.end)) {
-                    conflictSet.conflictType = "反向终点冲撞";
+                        conflictSet.deadlockType = "反向终点冲撞";
                     deadlockSets.add(conflictSet);
                 }
             }
         }
 
         return deadlockSets;
+    }
+
+    /**
+     * 获取需要重新规划路径的托肯id
+     * @param deadlockSets
+     * @param AllConflictPlaceSets
+     * @return 冲突库所集合个数多的托肯id，如果个数相同，则路径长的托肯id
+     */
+    public static ArrayList<Integer> getNeedReplanTokensId(@NotNull ArrayList<conflictPlaceSet> deadlockSets, ArrayList<conflictPlaceSet> AllConflictPlaceSets) {
+    ArrayList<Integer> needReplanTokens = new ArrayList<>();
+
+    for (conflictPlaceSet deadlockSet : deadlockSets) {
+        Token tokenA = deadlockSet.conflictTokenA;
+        Token tokenB = deadlockSet.conflictTokenB;
+
+        int numA = 0;
+        int numB = 0;
+
+        for (conflictPlaceSet conflictSet : AllConflictPlaceSets) {
+            if (conflictSet.conflictTokenA.equals(tokenA) || conflictSet.conflictTokenB.equals(tokenA)) {
+                numA++;
+            }
+            if (conflictSet.conflictTokenA.equals(tokenB) || conflictSet.conflictTokenB.equals(tokenB)) {
+                numB++;
+            }
+        }
+
+        Token needReplanToken;
+        if (numA > numB) {
+            needReplanToken = tokenA;
+        } else if (numA < numB) {
+            needReplanToken = tokenB;
+        } else {
+            if (tokenA.path.size() >= tokenB.path.size()) {
+                needReplanToken = tokenA;
+            } else {
+                needReplanToken = tokenB;
+            }
+        }
+
+        if (!needReplanTokens.contains(needReplanToken.id)) {
+            needReplanTokens.add(needReplanToken.id);
+        }
+    }
+
+    return needReplanTokens;
+}
+
+    /**
+        * 获取需要重新规划路径的托肯的新地图，将包含此托肯的所有冲突库所集合中的所有库所的前集变迁的cost设为2
+        * @param AllConflictPlaceSets
+        * @param needReplanToken
+        * @return
+        */
+    public static MapInfo getNewMapForReplanToken(ArrayList<conflictPlaceSet> AllConflictPlaceSets,@NotNull Token needReplanToken) {
+        MapInfo info = new MapInfo().getMap();
+        PetriNet petriNet = new PetriNet();
+        int[][] matrix = petriNet.creatIncidenceMatrix();
+
+        ArrayList<Integer> arrIndexT = new ArrayList<>();
+        for (conflictPlaceSet conflictSet : AllConflictPlaceSets) {
+            if (conflictSet.conflictTokenA.equals(needReplanToken) || conflictSet.conflictTokenB.equals(needReplanToken)) {
+                for (Place place : conflictSet.placeSet) {
+                    ArrayList<Integer> forwardTransitionIndexSet = petriNet.getForwardTransitionIndexSetForPlace(place.index, matrix);
+                    arrIndexT.addAll(forwardTransitionIndexSet);
+                }
+            }
+        }
+
+        for (Integer indexT : arrIndexT) {
+            info.transitions[indexT].cost = 2;
+        }
+
+        return info;
+    }
+
+    /**
+     * 重规划token们的路径
+     * @param needReplanTokens
+     * @param AllConflictPlaceSets
+     * @param storageInfo
+     * @param tokens
+     */
+    public static void replanTokenPaths(@NotNull ArrayList<Integer> needReplanTokens, ArrayList<conflictPlaceSet> AllConflictPlaceSets,@NotNull int[] storageInfo,@NotNull Token[] tokens) {
+        for (Integer token : needReplanTokens) {
+            MapInfo info = getNewMapForReplanToken(AllConflictPlaceSets, tokens[token]);
+            HashMap <Integer,Place> path = new PetriAstar().start(info, storageInfo, tokens, token);
+            tokens[token].path = new PetriAstar().start(info, storageInfo, tokens, token);
+
+        }
     }
 }

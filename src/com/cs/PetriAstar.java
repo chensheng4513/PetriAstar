@@ -69,7 +69,7 @@ public class PetriAstar {
             Place backwardPlace = mapInfo.places[element];//获得current的各后集
 
             if (canAddPlaceToOpen(backwardPlace, storageInfo, tokens, tokenId)) {
-                addPlaceToOpen(backwardPlace, current, mapInfo.places[tokens[tokenId].end], tokens, tokenId);
+                addPlaceToOpen(backwardPlace, current, mapInfo.places[tokens[tokenId].end], tokens, tokenId, mapInfo.transitions);
             }
         }
     }
@@ -77,9 +77,9 @@ public class PetriAstar {
     /**
      * 添加一个后集库所到open表
      */
-    private void addPlaceToOpen(Place backwardPlace, Place current, Place end, Token[] tokens, int tokenId) {
-
-        int g1 = current.g1 + 1;
+    private void addPlaceToOpen(Place backwardPlace, Place current, Place end, Token[] tokens, int tokenId,Transition[] transitions) {
+        int indexT =  getTransitionIndex(backwardPlace,current);
+        int g1 = current.g1 + transitions[indexT].cost;
         int g2 = current.g2 + getRepeatNum(backwardPlace, tokens, tokenId);
         int g3 = current.g3 + isNeedTurn(current, backwardPlace, tokens, tokenId);
         int g = g1 + g2 + g3; // 计算邻结点的G值
@@ -217,4 +217,17 @@ public class PetriAstar {
         }
         return false;
     }
+    private int getTransitionIndex(Place backwardPlace, Place current){
+        ArrayList<Integer> forwardArr = new PetriNet().getForwardTransitionIndexSetForPlace(backwardPlace.index,new PetriNet().creatIncidenceMatrix());
+        ArrayList<Integer> backwardArr = new PetriNet().getbackwardTransitionIndexSetForPlace(current.index,new PetriNet().creatIncidenceMatrix());
+        for (Integer numF : forwardArr) {
+           for (Integer numB : backwardArr) {
+               if(numF == numB){
+                   return numB;
+               }
+           }
+        }
+        return 0;
+    }
+
 }
