@@ -3,10 +3,8 @@ package com.cs.test;
 import com.cs.*;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
+import java.util.concurrent.*;
 
 
 public class PetriTest {
@@ -37,13 +35,18 @@ public class PetriTest {
 
 
 
-        //初始化穿梭车状态
+        //初始化托肯状态
         Token[] tokens = new Token[4];
-        tokens[0] = new Token(0, "穿梭车0_红色", true, 0, 1, 3, 3, 26, null,null,1,2);
-        tokens[1] = new Token(1, "穿梭车1_绿色", false, 0, 1, 1, 1, 28, null,null,1,1);
-        tokens[2] = new Token(2, "穿梭车2_蓝色", false, Math.PI / 2, 1, 9, 9, 11, null,null,1,1);
-        tokens[3] = new Token(3, "穿梭车3_青色", false, Math.PI / 2, 1, 7, 7, 5, null,null,1,1);
-
+        tokens[0] = new Token(0, "托肯0_红色", true, 0, 1, 3, 3, 26, new HashMap<>(),new HashMap<>(),1,2,new HashMap<>());
+        tokens[1] = new Token(1, "托肯1_绿色", false, 0, 1, 1, 1, 28, new HashMap<>(),new HashMap<>(),1,1,new HashMap<>());
+        tokens[2] = new Token(2, "托肯2_蓝色", false, Math.PI / 2, 1, 9, 9, 11, new HashMap<>(),new HashMap<>(),1,1,new HashMap<>());
+        tokens[3] = new Token(3, "托肯3_青色", false, Math.PI / 2, 1, 7, 7, 5, new HashMap<>(),new HashMap<>(),1,1,new HashMap<>());
+        //初始化穿梭车状态
+        Shuttle[] shuttles = new Shuttle[4];
+        shuttles[0] = new Shuttle(0,"穿梭车0",3,new HashMap<>(),new HashMap<>());
+        shuttles[1] = new Shuttle(1,"穿梭车1",1,new HashMap<>(),new HashMap<>());
+        shuttles[2] = new Shuttle(2,"穿梭车2",9,new HashMap<>(),new HashMap<>());
+        shuttles[3] = new Shuttle(3,"穿梭车3",7,new HashMap<>(),new HashMap<>());
         //初始化货位数组
         int[] storageInfo = new int[]{0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -56,19 +59,43 @@ public class PetriTest {
         tokens[1].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 1);
         tokens[2].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 2);
         tokens[3].path = new PetriAstar().start(new MapInfo().getMap(), storageInfo, tokens, 3);
-        //设置所有托肯的无死锁路径和优先级
-        ArrayList<conflictPlaceSet> allConflictPlaceSets = getUnDeadlockRoute(tokens,storageInfo);
-        //打印路径
-        for (int i = 0; i < 4; i++) {
-            if (tokens[i].path != null) {
-                for (HashMap.Entry<Integer, Place> entry : tokens[i].path.entrySet()) {
-                    System.out.println(tokens[i].name + "___序号: " + entry.getKey() + ", 库所: " + entry.getValue().name);
-                }
-            } else {
-                System.out.println(tokens[i].name + "___路径为空");
-            }
 
+        //计算各托肯的remainPath
+        calculateRemainPath(tokens[0]);
+        calculateRemainPath(tokens[1]);
+        calculateRemainPath(tokens[2]);
+        calculateRemainPath(tokens[3]);
+
+
+        //计算各托肯的allConflictPlaceSets
+        ArrayList<conflictPlaceSet> allConflictPlaceSets = getUnDeadlockRoute(tokens,storageInfo);
+
+
+        //开始算法
+        MapInfo info = new MapInfo().getMap();
+        for (int i = 0; i < tokens.length; i++) {
+            info.places[tokens[i].position].occupiedToken = tokens[i];
         }
+
+        getRoundPathForShuttle(tokens, shuttles, allConflictPlaceSets, info);
+
+        //打印shuttles的unObstructedPath
+        for (int i = 0; i < shuttles.length; i++) {
+
+            System.out.println("穿梭车" + shuttles[i].name + "的通畅路径为：");
+            for (Map.Entry<Integer, Place> entry : shuttles[i].unObstructedPath.entrySet()) {
+                System.out.println(entry.getValue().name);
+            }
+        }
+
+
+
+
+
+
+
+
+
 
 
       
@@ -300,6 +327,7 @@ public class PetriTest {
             MapInfo info = getNewMapForReplanToken(AllConflictPlaceSets, tokens[token]);
             HashMap <Integer,Place> path = new PetriAstar().start(info, storageInfo, tokens, token);
             tokens[token].path = new PetriAstar().start(info, storageInfo, tokens, token);
+            calculateRemainPath(tokens[token]);
 
         }
     }
@@ -381,14 +409,297 @@ public class PetriTest {
             }
             //路径重规划
             replanTokenPaths(needReplanTokens,allConflictPlaceSets,storageInfo,tokens);
+
             if(i==9){
-                System.out.println("路径重规划次数超过10次，仍然存在死锁");
-                return null;
+                // 获得冲突库所集合
+                allConflictPlaceSets = getAllConflictPlaceSets(tokens);
+                // 获得死锁库所集合
+                 deadlockSets = detectDeadlocks(allConflictPlaceSets);
+                if(!deadlockSets.isEmpty()){
+                    System.out.println("路径重规划次数超过10次，仍然存在死锁");
+                    return null;
+                }
+
             }
 
         }
         // 计算优先级
         calPriority(tokens,allConflictPlaceSets);
         return allConflictPlaceSets;
+    }
+
+    /**
+     * 计算token的remainPath
+     * @param token
+     */
+    public static void calculateRemainPath(Token token) {
+    int positionIndex = -1;
+    for (Map.Entry<Integer, Place> entry : token.path.entrySet()) {
+        if (entry.getValue().index == token.position) {
+            positionIndex = entry.getKey();
+            break;
+        }
+    }
+    if (positionIndex != -1) {
+        HashMap<Integer, Place> remainPath = new HashMap<>();
+        for (Map.Entry<Integer, Place> entry : token.path.entrySet()) {
+            if (entry.getKey() >= positionIndex) {
+                remainPath.put(entry.getKey() - positionIndex, entry.getValue());
+            }
+        }
+        token.remainPath = remainPath;
+    }
+    }
+
+    /**
+     * 为每个托肯申请库所集合
+     * @param i
+     * @param tokens
+     * @param allConflictPlaceSets
+     * @param
+     */
+    public static void applyPlaceSet(int i,Token[] tokens,ArrayList<conflictPlaceSet> allConflictPlaceSets){
+        ArrayList <conflictPlaceSet> includeTokenSet = new ArrayList<>();
+        for (conflictPlaceSet conflictSet : allConflictPlaceSets){
+            if (conflictSet.conflictTokenA.id == tokens[i].id || conflictSet.conflictTokenB.id == tokens[i].id){//获得包含tokens[i]的所有冲突库所集合
+                includeTokenSet.add(conflictSet);
+            }
+        }
+        if (i==0 || includeTokenSet.isEmpty()){//如果该托肯未与其它托肯形成冲突库所序列或者优先级最低，则申请该托肯剩余路径库所序列中的在第一个库所指向第一个未被其占用的库所方向上的所有未被其占用的库所
+
+            int index = tokens[i].remainPath.size() - 1;//如果全是同方向的，那索引设为最后一个
+            Place place0 = tokens[i].remainPath.get(0);
+            Place place1 = tokens[i].remainPath.get(1);
+            double arctan = Math.abs(Math.atan((double) (place1.coord.y - place0.coord.y) / (place1.coord.x - place0.coord.x)));
+            for (int j = 0; j < tokens[i].remainPath.size() - 1; j++) {
+                Place placeZero = tokens[i].remainPath.get(j);
+                Place placeOne = tokens[i].remainPath.get(j+1);
+                double arctanI = Math.abs(Math.atan((double) (placeOne.coord.y - placeZero.coord.y) / (placeOne.coord.x - placeZero.coord.x)));
+                if(arctan != arctanI){
+                    index = j;
+                    break;
+                }
+            }
+            for (Map.Entry<Integer, Place> entry : tokens[i].remainPath.entrySet()) {
+                if (entry.getKey() > 0 && entry.getKey() <= index) {//第一个库所指向第一个未被其占用的库所方向上的所有未被其占用的库所
+                    tokens[i].applyList.put(entry.getKey(), entry.getValue());//tokens[i].applyList的key从1开始到index结束
+                }
+            }
+
+
+        }else{//求出在该托肯与其它更低优先级托肯形成的冲突集合中的且在该托肯剩余路径上的最后一个库所PL
+
+            ArrayList<Integer> keys = new ArrayList<>();
+            for (int k = 0; k <= i-1; k++) {//遍历每个更低优先级的托肯
+                for (conflictPlaceSet conflictSet : includeTokenSet){
+                    if (conflictSet.conflictTokenA.id == tokens[k].id || conflictSet.conflictTokenB.id == tokens[k].id){//获得包含tokens[i]和更低优先级托肯的所有冲突库所集合
+                        for (Place place : conflictSet.placeSet){
+                           keys.add(getKeyByValue(tokens[i].path,place));//在keys里面找到最大的索引就是PL
+                        }
+                    }
+                }
+            }
+
+            if(!keys.isEmpty()){//如果该托肯与其它低优先级的托肯形成冲突库所集合，则申请该托肯路径中的库所PL以及PL前的所有未被占用过的库所。
+                int PL = Collections.max(keys);//在path中的索引
+                Place place = tokens[i].path.get(PL);//在path中的库所
+                int index = getKeyByValue(tokens[i].remainPath,place);//在remainPath中的索引
+
+                if(index > 0){//pl还未申请到
+                    for (Map.Entry<Integer, Place> entry : tokens[i].remainPath.entrySet()) {
+                        if (entry.getKey() > 0 && entry.getKey() <= index) {
+                            tokens[i].applyList.put(entry.getKey(), entry.getValue());//tokens[i].applyList的key从1开始到index结束
+                        }
+                    }
+                }else {//pl已经申请到，申请该托肯剩余路径库所序列中的在第一个库所指向第一个未被其占用的库所方向上的所有未被其占用的库所；
+
+                    int index1 = tokens[i].remainPath.size() - 1;//如果全是同方向的，那索引设为最后一个
+                    Place place0 = tokens[i].remainPath.get(0);
+                    Place place1 = tokens[i].remainPath.get(1);
+                    double arctan = Math.abs(Math.atan((double) (place1.coord.y - place0.coord.y) / (place1.coord.x - place0.coord.x)));
+                    for (int j = 0; j < tokens[i].remainPath.size() - 1; j++) {
+                        Place placeZero = tokens[i].remainPath.get(j);
+                        Place placeOne = tokens[i].remainPath.get(j+1);
+                        double arctanI = Math.abs(Math.atan((double) (placeOne.coord.y - placeZero.coord.y) / (placeOne.coord.x - placeZero.coord.x)));
+                        if(arctan != arctanI){
+                            index1 = j;
+                            break;
+                        }
+                    }
+                    for (Map.Entry<Integer, Place> entry : tokens[i].remainPath.entrySet()) {
+                        if (entry.getKey() > 0 && entry.getKey() <= index1) {//第一个库所指向第一个未被其占用的库所方向上的所有未被其占用的库所
+                            tokens[i].applyList.put(entry.getKey(), entry.getValue());//tokens[i].applyList的key从1开始到index结束
+                        }
+                    }
+
+                }
+            }else{//申请该托肯剩余路径库所序列中的在第一个库所指向第一个未被其占用的库所方向上的所有未被其占用的库所
+                int index = tokens[i].remainPath.size() - 1;//如果全是同方向的，那索引设为最后一个
+                Place place0 = tokens[i].remainPath.get(0);
+                Place place1 = tokens[i].remainPath.get(1);
+                double arctan = Math.abs(Math.atan((double) (place1.coord.y - place0.coord.y) / (place1.coord.x - place0.coord.x)));
+                for (int j = 0; j < tokens[i].remainPath.size() - 1; j++) {
+                    Place placeZero = tokens[i].remainPath.get(j);
+                    Place placeOne = tokens[i].remainPath.get(j+1);
+                    double arctanI = Math.abs(Math.atan((double) (placeOne.coord.y - placeZero.coord.y) / (placeOne.coord.x - placeZero.coord.x)));
+                    if(arctan != arctanI){
+                        index = j;
+                        break;
+                    }
+                }
+                for (Map.Entry<Integer, Place> entry : tokens[i].remainPath.entrySet()) {
+                    if (entry.getKey() > 0 && entry.getKey() <= index) {//第一个库所指向第一个未被其占用的库所方向上的所有未被其占用的库所
+                        tokens[i].applyList.put(entry.getKey(), entry.getValue());//tokens[i].applyList的key从1开始到index结束
+                    }
+                }
+
+            }
+
+
+
+
+
+        }
+
+
+
+    }
+
+    /**
+     * 调整每个托肯的申请库所集合，得到最终各托肯的占用库所集合
+     * @param i
+     * @param tokens
+     */
+    public static void adjustPlaceSet(int i,Token[] tokens,MapInfo info){
+        for (int j = 1; j < tokens[i].remainPath.size(); j++) {
+            if (tokens[i].applyList.containsValue(tokens[i].remainPath.get(j))) {//从第二个库所开始遍历remainPath，如果tokens[i]自己的applyList中包含该库所
+                if (i < tokens.length-1){
+                    for (int k = i+1; k < tokens.length; k++) {//遍历优先级更高的其它托肯
+                        if (tokens[k].applyList.containsValue(tokens[i].remainPath.get(j)) || (info.places[tokens[i].remainPath.get(j).index].occupiedToken != tokens[i] && info.places[tokens[i].remainPath.get(j).index].occupiedToken != null)){//如果tokens[k]的applyList中也包含该库所，或者该库所已被其他托肯占用
+                            //遍历tokens[i]的applyList，将tokens[i]的applyList中的该库所及之后的所有库所都从tokens[i]的applyList中删除
+                            HashMap<Integer, Place> applyListCopy = new HashMap<>(tokens[i].applyList);
+                            for (Map.Entry<Integer, Place> entry : tokens[i].applyList.entrySet()) {
+                                // 在这里修改applyListCopy
+                                if (entry.getKey() >= j) {
+                                    applyListCopy.remove(entry.getKey());
+                                }
+                            }
+                            tokens[i].applyList = applyListCopy; // 将修改后的副本赋值回原来的applyList
+                            break;
+                        }
+                    }
+                }else{//优先级最高的托肯只要判断applyList中的库所是否被占用
+                        if (info.places[tokens[i].remainPath.get(j).index].occupiedToken != tokens[i] && info.places[tokens[i].remainPath.get(j).index].occupiedToken != null){//如果该库所已被其他托肯占用
+                        //遍历tokens[i]的applyList，将tokens[i]的applyList中的该库所及之后的所有库所都从tokens[i]的applyList中删除
+
+                            //遍历tokens[i]的applyList，将tokens[i]的applyList中的该库所及之后的所有库所都从tokens[i]的applyList中删除
+                            HashMap<Integer, Place> applyListCopy = new HashMap<>(tokens[i].applyList);
+                            for (Map.Entry<Integer, Place> entry : tokens[i].applyList.entrySet()) {
+                                // 在这里修改applyListCopy
+                                if (entry.getKey() >= j) {
+                                    applyListCopy.remove(entry.getKey());
+                                }
+                            }
+                            tokens[i].applyList = applyListCopy; // 将修改后的副本赋值回原来的applyList
+                    }
+
+
+                }
+
+
+            }else {
+                break;
+            }
+        }
+
+    }
+
+    /**
+     * 得到每个穿梭车每轮的无碰撞、无死锁路径
+     * @param tokens
+     * @param shuttles
+     * @param allConflictPlaceSets
+     * @param info
+     */
+    public static void getRoundPathForShuttle(Token[] tokens,Shuttle[] shuttles,ArrayList<conflictPlaceSet> allConflictPlaceSets,MapInfo info){
+
+        //对tokens数组进行排序，要求按照数组中元素tokens[i]的priority值进行排序，priority值小的元素，索引也小。如果priority值一样大，则索引顺序随意。
+        Token[] sortedTokens = Arrays.copyOf(tokens, tokens.length);
+        Arrays.sort(sortedTokens, new Comparator<Token>() {
+            @Override
+            public int compare(Token t1, Token t2) {
+                return Integer.compare(t1.priority, t2.priority);
+            }
+        });
+        //为每个托肯动态申请若干数量的库所集合
+        for (int i = 0; i < sortedTokens.length; i++) {
+            if (sortedTokens[i].position == shuttles[sortedTokens[i].id].currentPosition){//如果其对应的四向穿梭车还未到达该托肯的当前所在库所，则本轮不申请，等待下一轮
+                applyPlaceSet(i,sortedTokens,allConflictPlaceSets);
+                //打印sortedTokens[i].applyList的内容
+                for (Map.Entry<Integer, Place> entry : sortedTokens[i].applyList.entrySet()) {
+                    System.out.println("调整前：托肯"+ sortedTokens[i].id + "申请的的路径点: " + entry.getKey() + ", " + entry.getValue().name);
+                }
+
+            }
+        }
+        //从优先级最低的托肯开始，调整各托肯的申请库所集合，得到最终各托肯的占用库所集合
+        for (int i = 0; i < sortedTokens.length; i++) {
+            if (sortedTokens[i].position == shuttles[sortedTokens[i].id].currentPosition){//如果其对应的四向穿梭车还未到达该托肯的当前所在库所，则本轮不申请，等待下一轮
+                adjustPlaceSet(i,sortedTokens,info);
+                //打印sortedTokens[i].applyList的内容
+                for (Map.Entry<Integer, Place> entry : sortedTokens[i].applyList.entrySet()) {
+                    System.out.println("调整后：托肯"+ sortedTokens[i].id + "申请的的路径点: " + entry.getKey() + ", " + entry.getValue().name);
+                }
+
+            }
+        }
+        //得到最终各托肯的占用库所集合后，各托肯的position要更新，remainPath也要更新,各托肯的applyList要清空
+        for (int i = 0; i < sortedTokens.length; i++) {
+
+            //如果sortedTokens[i].applyList非空
+            if (!sortedTokens[i].applyList.isEmpty()) {
+                //输出穿梭车可运行路径
+                shuttles[sortedTokens[i].id].unObstructedPath.putAll(sortedTokens[i].applyList);
+                //更新info中的各库所的占用托肯
+                for (Map.Entry<Integer, Place> entry : sortedTokens[i].applyList.entrySet()) {
+                    info.places[entry.getValue().index].occupiedToken = sortedTokens[i];
+                }
+                //各托肯的position设为对应applyList中的索引最大的库所的index
+                sortedTokens[i].position = sortedTokens[i].applyList.get(Collections.max(sortedTokens[i].applyList.keySet())).index ;
+                //更新各托肯的remainPath
+                calculateRemainPath(sortedTokens[i]);
+            }
+            //各托肯的applyList要清空
+            sortedTokens[i].applyList.clear();
+
+        }
+
+
+    }
+
+    /**
+     * 开始轮询算法
+     * @param tokens
+     * @param shuttles
+     * @param storageInfo
+     */
+    public static void startRound(Token[] tokens,Shuttle[] shuttles,int[] storageInfo){
+        MapInfo info = new MapInfo().getMap();//新建一个图用于轮询算法
+        ArrayList<conflictPlaceSet> allConflictPlaceSets = getUnDeadlockRoute(tokens,storageInfo);
+
+        //初始化获得每一个托肯的当前库所，并将各个托肯当前库所的占用托肯设为该托肯
+        for (int i = 0; i < tokens.length; i++) {
+           info.places[tokens[i].position].occupiedToken = tokens[i];
+        }
+        //开始循环
+        while (true){
+            getRoundPathForShuttle(tokens,shuttles,allConflictPlaceSets,info);
+            try {
+                Thread.sleep(10000); //延迟10s
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
     }
 }

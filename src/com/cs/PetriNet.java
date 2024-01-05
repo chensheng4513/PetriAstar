@@ -262,7 +262,7 @@ public class PetriNet {
     public Place[] creatPlace(){
         Place[] places = new Place[29];
         for (int i = 0; i < 29; i++) {
-            places[i] = new Place(i,'P'+ Integer.toString(i),null,0,0,0,0,0,null,getBackwardPlaceIndexSetForPlace(i,creatIncidenceMatrix()));
+            places[i] = new Place(i,'P'+ Integer.toString(i),null,0,0,0,0,0,null,getBackwardPlaceIndexSetForPlace(i,creatIncidenceMatrix()),null);
         }
         //建立库所坐标
         places[0].coord = new Coord(1,1);

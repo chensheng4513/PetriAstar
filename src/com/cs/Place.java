@@ -12,9 +12,8 @@ public class Place implements Comparable<Place> {
     public int g3;
     public int h;
     public Place parent;
-
-
     public ArrayList<Integer> backwardPlaceIndexSet;
+    public Token occupiedToken;
 
     public Place(int index){this.index = index;}
 
@@ -23,7 +22,7 @@ public class Place implements Comparable<Place> {
         this.coord = new Coord(x, y);
     }
 
-    public Place(int index,String name,Coord coord, int g, int g1, int g2, int g3, int h, Place parent,ArrayList<Integer> backwardPlaceIndexSet) {
+    public Place(int index,String name,Coord coord, int g, int g1, int g2, int g3, int h, Place parent,ArrayList<Integer> backwardPlaceIndexSet,Token occupiedToken) {
         this.name = name;
         this.coord = coord;
         this.g = g;
@@ -34,6 +33,7 @@ public class Place implements Comparable<Place> {
         this.parent = parent;
         this.index = index;
         this.backwardPlaceIndexSet = backwardPlaceIndexSet;
+        this.occupiedToken = occupiedToken;
 
     }
 
@@ -143,5 +143,13 @@ public class Place implements Comparable<Place> {
 
     public void setBackwardPlaceIndexSet(ArrayList<Integer> backwardPlaceIndexSet) {
         this.backwardPlaceIndexSet = backwardPlaceIndexSet;
+    }
+
+    public Token getOccupiedToken() {
+        return occupiedToken;
+    }
+
+    public void setOccupiedToken(Token occupiedToken) {
+        this.occupiedToken = occupiedToken;
     }
 }

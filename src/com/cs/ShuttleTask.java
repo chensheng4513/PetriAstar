@@ -1,6 +1,6 @@
 package com.cs;
 
-public class shuttleTask {
+public class ShuttleTask {
     public Place start;
     public Place ene;
     public boolean isFinshed;

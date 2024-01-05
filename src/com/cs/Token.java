@@ -1,5 +1,6 @@
 package com.cs;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Token {
@@ -15,9 +16,10 @@ public class Token {
     public HashMap<Integer, Place> remainPath;//剩余路径，从当前位置position开始的后续未到达的路径
     public int taskPriority;//任务的优先级
     public int priority;//总的优先级
+    public HashMap<Integer, Place> applyList;//申请库所列表
 
 
-    public Token(int id, String name, boolean isLoad, double direction, float speed, int position, int start, int end, HashMap<Integer, Place> path, HashMap<Integer, Place> remainPath, int taskPriority, int priority) {
+    public Token(int id, String name, boolean isLoad, double direction, float speed, int position, int start, int end, HashMap<Integer, Place> path, HashMap<Integer, Place> remainPath, int taskPriority, int priority,HashMap<Integer, Place> applyList) {
         this.id = id;
         this.name = name;
         this.isLoad = isLoad;
@@ -30,6 +32,7 @@ public class Token {
         this.remainPath = remainPath;
         this.taskPriority = taskPriority;
         this.priority = priority;
+        this.applyList = applyList;
     }
 
     @Override
