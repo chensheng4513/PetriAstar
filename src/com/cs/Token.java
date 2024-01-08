@@ -1,5 +1,7 @@
 package com.cs;
 
+import sun.util.resources.cldr.en.CurrencyNames_en_TT;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -17,22 +19,23 @@ public class Token {
     public int taskPriority;//任务的优先级
     public int priority;//总的优先级
     public HashMap<Integer, Place> applyList;//申请库所列表
+    public ShuttleTask currentTask;//当前任务
 
 
-    public Token(int id, String name, boolean isLoad, double direction, float speed, int position, int start, int end, HashMap<Integer, Place> path, HashMap<Integer, Place> remainPath, int taskPriority, int priority,HashMap<Integer, Place> applyList) {
+    public Token(int id, String name, boolean isLoad, double direction, float speed, int position, int end, HashMap<Integer, Place> path, HashMap<Integer, Place> remainPath, int taskPriority, int priority,HashMap<Integer, Place> applyList,ShuttleTask currentTask) {
         this.id = id;
         this.name = name;
         this.isLoad = isLoad;
         this.direction = direction;
         this.speed = speed;
         this.position = position;
-        this.start = start;
         this.end = end;
         this.path = path;
         this.remainPath = remainPath;
         this.taskPriority = taskPriority;
         this.priority = priority;
         this.applyList = applyList;
+        this.currentTask = currentTask;
     }
 
     @Override

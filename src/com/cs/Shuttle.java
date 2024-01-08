@@ -1,5 +1,6 @@
 package com.cs;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class Shuttle {
@@ -8,9 +9,9 @@ public class Shuttle {
     public String name;//穿梭车名称
     public int currentPosition;//当前位置
     public HashMap<Integer, Place> path;//当前规划好的完整路径
-    public HashMap<Integer, Place> unObstructedPath;//通畅的路径，可以直接按此路径运行
+    public ArrayList<Place> unObstructedPath;//通畅的路径，可以直接按此路径运行
 
-    public Shuttle(int id, String name, int currentPosition, HashMap<Integer, Place> path, HashMap<Integer, Place> unObstructedPath) {
+    public Shuttle(int id, String name, int currentPosition, HashMap<Integer, Place> path, ArrayList<Place> unObstructedPath) {
         this.id = id;
         this.name = name;
         this.currentPosition = currentPosition;

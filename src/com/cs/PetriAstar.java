@@ -16,7 +16,7 @@ public class PetriAstar {
         openList.clear();
         closeList.clear();
         // 开始搜索
-        openList.add(mapInfo.places[tokens[tokenId].start]);
+        openList.add(mapInfo.places[tokens[tokenId].position]);
         HashMap<Integer, Place> path = moveNodes(mapInfo, storageInfo, tokens, tokenId);
         return path;
     }
